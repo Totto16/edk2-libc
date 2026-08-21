@@ -29,7 +29,7 @@
   # C Standard Libraries
   #
   LibC|StdLib/LibC/LibC.inf
-  LibCType|StdLib/LibC/Ctype/Ctype.inf
+  LibCtype|StdLib/LibC/Ctype/Ctype.inf
   LibLocale|StdLib/LibC/Locale/Locale.inf
   LibMath|StdLib/LibC/Math/Math.inf
   LibSignal|StdLib/LibC/Signal/Signal.inf

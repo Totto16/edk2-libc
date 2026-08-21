@@ -48,7 +48,7 @@
   PrintLib              # Used for strerror()
   PcdLib
   LibC
-  LibCType
+  LibCtype
   LibStdLib
 
 ################################################################

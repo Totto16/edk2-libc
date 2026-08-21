@@ -53,7 +53,7 @@
   MemoryAllocationLib
   ShellLib
   LibC
-  LibCType
+  LibCtype
   LibSignal
 
 ################################################################
