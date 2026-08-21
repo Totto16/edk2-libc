@@ -70,12 +70,27 @@ static void run_fini_array(void) {
 
 //TODO: this can be c or c++ constructors, so these shoul only be run, after libc  or libc AND libcxx is intilized, before we call EDK2_LIBC_ENTRY_NAME or EDK2_LIBCXX_ENTRY_NAME, but how to know if the final entry point is c++ or c? as c++ also uses the c entry point too
 
+// see eg. here for some information:
+// https://maskray.me/blog/2021-11-07-init-ctors-init-array
+
 void edk2_libc_call_constructors(void) {
     run_init_array();
 }
 
 void edk2_libc_call_destructors(void) {
     run_fini_array();
+}
+
+static libcxx_destroy_function_t g_edk2_libcxx_destroy_fn = NULL;
+void edk2_libcxx_set_destroy(libcxx_destroy_function_t cb){
+  g_edk2_libcxx_destroy_fn = cb;
+}
+
+void edk2_libcxx_destroy(void){
+  if(g_edk2_libcxx_destroy_fn != NULL){
+    g_edk2_libcxx_destroy_fn();
+    g_edk2_libcxx_destroy_fn = NULL;
+  }
 }
 
 /** Clean up data as required by the exit() function.
@@ -104,6 +119,8 @@ exitCleanup(INTN ExitVal)
     }
   }
 
+  // this is needed, if we use a c++ standard library, we need to clean up that before we clean up the libc and after custom cleanup and atexit calls
+  edk2_libcxx_destroy();
   edk2_libc_call_destructors();
 }
 
