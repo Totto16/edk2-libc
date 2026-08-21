@@ -288,6 +288,14 @@ double  sqrt(double Arg);
 **/
 double  ceil(double Arg);
 
+/** Compute the smallest integer value not less than Arg.
+
+    @param[in]    Arg   The value to compute the ceiling of.
+
+    @return   The ceiling of Arg expressed as a floating-point number.
+**/
+float  ceilf(float Arg);
+
 /** Compute the absolute value of Arg.
 
     @param[in]    Arg   The value to compute the absolute value of.

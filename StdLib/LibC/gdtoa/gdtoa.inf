@@ -61,6 +61,9 @@
   sum.c
   ulp.c
 
+  _strtof.c
+  _strtold.c
+
 [Packages]
   StdLib/StdLib.dec
   StdLibPrivateInternalFiles/DoNotUse.dec

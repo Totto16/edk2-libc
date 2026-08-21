@@ -138,6 +138,7 @@
     broken-down time.  The first nine (9) members are as mandated by the
     C95 standard.  Additional fields have been added for EFI support.
 **/
+__BEGIN_DECLS
 struct tm {
   int     tm_year;      // years since 1900
   int     tm_mon;       // months since January  [0, 11]
@@ -430,5 +431,5 @@ char *strptime(const char *, const char * format, struct tm*);
 /* #################  Implementation Functions  ########################### */
 
 clock_t __getCPS(void);
-
+__END_DECLS
 #endif  /* _TIME_H */

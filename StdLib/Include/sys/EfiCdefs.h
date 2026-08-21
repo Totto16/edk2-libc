@@ -88,6 +88,23 @@
 #include  <sys/featuretest.h>
 #define __warn_references(sym,msg)
 
+// define USE_WEAK_ALIASES to use them
+
+#ifdef USE_WEAK_ALIASES
+
+// Source - https://stackoverflow.com/a/34893039
+// Posted by Sam Liao
+// Retrieved 2026-08-28, License - CC BY-SA 3.0
+
+/* Define ALIASNAME as a weak alias for NAME.
+   If weak aliases are not available, this defines a strong alias.  */
+# define weak_alias(aliasname, name) _weak_alias (aliasname, name)
+# define _weak_alias(aliasname, name) __weak_alias (aliasname, name)
+# define __weak_alias(aliasname, name) \
+  extern __typeof (name) aliasname __attribute__ ((weak, alias (#name)));
+
+#endif
+
 /* NULL is defined by the automatic inclusion of Base.h by the build tools. */
 
 #ifdef __GNUC__

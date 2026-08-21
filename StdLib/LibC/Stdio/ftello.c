@@ -98,3 +98,16 @@ ftello(FILE *fp)
   FUNLOCKFILE(fp);
   return (pos);
 }
+
+
+// instead of using weak symbol, define an alias
+
+#ifdef ftello 
+#undef ftello
+#endif
+
+off_t
+ftello(FILE *fp)
+{
+  return _ftello(fp);
+}
