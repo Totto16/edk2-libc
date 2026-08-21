@@ -129,7 +129,7 @@
 
 [LibraryClasses]
   LibC
-  LibCType
+  LibCtype
   LibGdtoa
   LibLocale
   LibStdLib

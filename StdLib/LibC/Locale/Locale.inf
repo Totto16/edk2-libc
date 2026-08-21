@@ -61,4 +61,4 @@
 
 [LibraryClasses]
   LibC
-  LibCType
+  LibCtype
