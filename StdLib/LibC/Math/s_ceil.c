@@ -72,3 +72,7 @@ ceil(double x)
   INSERT_WORDS(x,i0,i1);
   return x;
 }
+
+float  ceilf(float x){
+  return (float)ceil((double)x);
+}

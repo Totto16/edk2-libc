@@ -25,6 +25,9 @@
   THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
   WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 **/
+
+#ifndef _ASSERT_H_
+#define _ASSERT_H_
 #include  <sys/EfiCdefs.h>
 
 #undef  assert        ///< Remove any existing definition for assert.
@@ -49,6 +52,7 @@
                   current application and returns to the environment that
                   the application was launched from.
 **/
+__BEGIN_DECLS
 extern void
 __assert(const char *file, const char *func, int line, const char *failedexpr);
 
@@ -78,5 +82,8 @@ __assert(const char *file, const char *func, int line, const char *failedexpr);
 #define assert(Expression)   ((Expression) ? (void)0 :\
                               __assert(__FILE__, __func__, __LINE__, #Expression) )
 #endif
+__END_DECLS
 /// @}
 /* END of file assert.h */
+
+#endif  /* _ASSERT_H_ */

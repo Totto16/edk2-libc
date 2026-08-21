@@ -90,6 +90,7 @@
   swprintf.c          #
   swscanf.c           #
   ungetwc.c           #
+  vasprintf.c         #
   vfwscanf.c          #
   vswprintf.c         #
   vswscanf.c          #

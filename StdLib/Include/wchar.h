@@ -455,6 +455,7 @@ struct  tm;
               transmitted, or a negative value if an output or encoding error
               occurred.
 **/
+__BEGIN_DECLS
 int fwprintf(FILE * __restrict stream, const wchar_t * __restrict format, ...);
 
 /** The fwscanf function reads input from the stream pointed to by stream,
@@ -1548,5 +1549,7 @@ size_t mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t 
                 sequence, not including the terminating null character (if any).
 **/
 size_t wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len, mbstate_t * __restrict ps);
+
+__END_DECLS
 
 #endif  /* _WCHAR_H */
