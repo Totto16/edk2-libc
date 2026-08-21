@@ -138,3 +138,5 @@
     MSFT:*_VS2015x86xASL_*_CC_FLAGS   = /Wv:11
     MSFT:*_VS2017_*_CC_FLAGS          = /Wv:11
     MSFT:*_VS2019_*_CC_FLAGS          = /Wv:11
+
+    GCC:*_*_*_CC_FLAGS = -Wprio-ctor-dtor
