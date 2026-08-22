@@ -40,16 +40,24 @@ struct  __MainData  *gMD;
 // these symbols are provided by the linker from the extions .init_array and .fini_array
 typedef void (*init_func_t)(void);
 
-extern init_func_t* __init_array_start __attribute__ ((section(".init_array"), aligned(sizeof(init_func_t)))) ;
-extern init_func_t* __init_array_end __attribute__ ((section(".init_array"), aligned(sizeof(init_func_t)))) ;
+extern init_func_t __init_array_start[] __attribute__((section(".init_array"), aligned(sizeof(init_func_t))));
+extern init_func_t __init_array_end[] __attribute__((section(".init_array"), aligned(sizeof(init_func_t))));
 
-extern init_func_t* __fini_array_start __attribute__ ((section(".fini_array"), aligned(sizeof(init_func_t)))) ;
-extern init_func_t* __fini_array_end; __attribute__ ((section(".fini_array"), aligned(sizeof(init_func_t)))) 
+extern init_func_t __fini_array_start[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
+extern init_func_t __fini_array_end[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
+
+
+// see: https://gcc.gnu.org/onlinedocs/gccint/Initialization.html
+// for more information on how gcc handles initialization
+
+
+//TODO: so does gcc order them in another way, we don't expect? so how do we need to traverse them?
+// Depending on the operating system and its executable file format, either crtstuff.c or libgcc2.c traverses these lists at startup time and exit time. Constructors are called in reverse order of the list; destructors in forward order.
 
 static void run_init_array(void) {
     size_t size = __init_array_end - __init_array_start;
     for (size_t i = 0; i < size; ++i) {
-        init_func_t func = __init_array_start[i] ;
+        init_func_t func = __init_array_start[i];
         if (*func != NULL) {
             (*func)();
         }
@@ -73,25 +81,33 @@ static void run_fini_array(void) {
 // see eg. here for some information:
 // https://maskray.me/blog/2021-11-07-init-ctors-init-array
 
-void edk2_libc_call_constructors(void) {
+static void edk2_libc_call_constructors(void) {
     run_init_array();
 }
 
-void edk2_libc_call_destructors(void) {
+static void edk2_libc_call_destructors(void) {
     run_fini_array();
 }
 
-static libcxx_destroy_function_t g_edk2_libcxx_destroy_fn = NULL;
-void edk2_libcxx_set_destroy(libcxx_destroy_function_t cb){
-  g_edk2_libcxx_destroy_fn = cb;
+#define CALL_WEAK_SYMBOL(name) \
+    do {                       \
+        if (name) {            \
+            name();            \
+        }                      \
+    } while (false)
+
+
+static void __c_uefi_init_libc() {
+    CALL_WEAK_SYMBOL(edk2_libcxx_init);
+    edk2_libc_call_constructors();
 }
 
-void edk2_libcxx_destroy(void){
-  if(g_edk2_libcxx_destroy_fn != NULL){
-    g_edk2_libcxx_destroy_fn();
-    g_edk2_libcxx_destroy_fn = NULL;
-  }
+
+static void __c_uefi_deinit_libc() {
+    edk2_libc_call_destructors();
+    CALL_WEAK_SYMBOL(edk2_libcxx_destroy);
 }
+
 
 /** Clean up data as required by the exit() function.
 
@@ -120,8 +136,7 @@ exitCleanup(INTN ExitVal)
   }
 
   // this is needed, if we use a c++ standard library, we need to clean up that before we clean up the libc and after custom cleanup and atexit calls
-  edk2_libcxx_destroy();
-  edk2_libc_call_destructors();
+  __c_uefi_deinit_libc();
 }
 
 /* Create mbcs versions of the Argv strings. */
@@ -234,7 +249,7 @@ ShellAppMain (
     else {
       if( setjmp(gMD->MainExit) == 0) {
         errno   = 0;    // Clean up any "scratch" values from startup.
-        edk2_libc_call_constructors();
+        __c_uefi_init_libc();
         ExitVal = (INTN)EDK2_LIBC_ENTRY_NAME( (int)Argc, gMD->NArgV);
         exitCleanup(ExitVal);
       }

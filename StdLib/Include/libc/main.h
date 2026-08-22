@@ -9,8 +9,8 @@ extern "C" {
 
 extern int EDK2_LIBC_ENTRY_NAME(int, char**);
 
-typedef void (*libcxx_destroy_function_t)(void);
-extern void edk2_libcxx_set_destroy(libcxx_destroy_function_t cb);
+extern void edk2_libcxx_destroy(void) __attribute__((weak));
+extern void edk2_libcxx_init(void) __attribute__((weak));
 
 
 #ifdef __cplusplus
