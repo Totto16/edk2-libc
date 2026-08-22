@@ -46,6 +46,13 @@ extern init_func_t __init_array_end[] __attribute__((section(".init_array"), ali
 extern init_func_t __fini_array_start[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
 extern init_func_t __fini_array_end[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
 
+extern init_func_t __libc_init_array_start[] __attribute__((section(".init_array"), aligned(sizeof(init_func_t))));
+extern init_func_t __libc_init_array_end[] __attribute__((section(".init_array"), aligned(sizeof(init_func_t))));
+
+extern init_func_t __libc_fini_array_start[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
+extern init_func_t __libc_fini_array_end[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
+
+
 
 // see: https://gcc.gnu.org/onlinedocs/gccint/Initialization.html
 // for more information on how gcc handles initialization
@@ -89,24 +96,35 @@ static void edk2_libc_call_destructors(void) {
     run_fini_array();
 }
 
-#define CALL_WEAK_SYMBOL(name) \
-    do {                       \
-        if (name) {            \
-            name();            \
-        }                      \
-    } while (false)
-
-
-static void __c_uefi_init_libc() {
-    CALL_WEAK_SYMBOL(edk2_libcxx_init);
-    edk2_libc_call_constructors();
+static void __c_uefi_init_libc(void) {
+    size_t size = __libc_init_array_end - __libc_init_array_start;
+    for (size_t i = 0; i < size; ++i) {
+        init_func_t func = __libc_init_array_start[i];
+        if (*func != NULL) {
+            (*func)();
+        }
+    }
 }
 
 
-static void __c_uefi_deinit_libc() {
-    edk2_libc_call_destructors();
-    CALL_WEAK_SYMBOL(edk2_libcxx_destroy);
+init_func_t __libc_init_ref_edk2_libc_call_constructors __attribute__((retain, used, section(".__libc_init.prio_99.libc_constructors"), aligned(sizeof(init_func_t)))) = 
+edk2_libc_call_constructors;
+
+
+static void __c_uefi_deinit_libc(void) {
+    // iterate reversed
+    size_t size = __libc_fini_array_end - __libc_fini_array_start;
+    for (size_t i = size; i != 0; --i) {
+        init_func_t func = __libc_fini_array_start[i - 1];
+        if (*func != NULL) {
+            (*func)();
+        }
+    }
 }
+
+
+init_func_t __libc_init_ref_edk2_libc_call_destructors __attribute__((retain, used, section(".__libc_fini.prio_99.libc_destructors"), aligned(sizeof(init_func_t)))) = 
+edk2_libc_call_destructors;
 
 
 /** Clean up data as required by the exit() function.
