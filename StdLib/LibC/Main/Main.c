@@ -31,16 +31,94 @@
 #include  <MainData.h>
 #include  <unistd.h>
 
-extern int main( int, char**);
+#include <libc/main.h>
+
 extern int __sse2_available;
 
 struct  __MainData  *gMD;
 
-/* Worker function to keep GCC happy. */
-void __main()
-{
-  ;
+// these symbols are provided by the linker from the extions .init_array and .fini_array
+typedef void (*init_func_t)(void);
+
+extern init_func_t __init_array_start[] __attribute__((section(".init_array"), aligned(sizeof(init_func_t))));
+extern init_func_t __init_array_end[] __attribute__((section(".init_array"), aligned(sizeof(init_func_t))));
+
+extern init_func_t __fini_array_start[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
+extern init_func_t __fini_array_end[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
+
+extern init_func_t __libc_init_array_start[] __attribute__((section(".init_array"), aligned(sizeof(init_func_t))));
+extern init_func_t __libc_init_array_end[] __attribute__((section(".init_array"), aligned(sizeof(init_func_t))));
+
+extern init_func_t __libc_fini_array_start[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
+extern init_func_t __libc_fini_array_end[] __attribute__((section(".fini_array"), aligned(sizeof(init_func_t))));
+
+
+
+// see: https://gcc.gnu.org/onlinedocs/gccint/Initialization.html
+// for more information on how gcc handles initialization
+
+static void run_init_array(void) {
+    size_t size = __init_array_end - __init_array_start;
+    for (size_t i = 0; i < size; ++i) {
+        init_func_t func = __init_array_start[i];
+        if (*func != NULL) {
+            (*func)();
+        }
+    }
 }
+
+static void run_fini_array(void) {
+    // iterate reversed
+    size_t size = __fini_array_end - __fini_array_start;
+    for (size_t i = size; i != 0; --i) {
+        init_func_t func = __fini_array_start[i - 1];
+        if (*func != NULL) {
+            (*func)();
+        }
+    }
+}
+
+// see eg. here for some information:
+// https://maskray.me/blog/2021-11-07-init-ctors-init-array
+
+static void edk2_libc_call_constructors(void) {
+    run_init_array();
+}
+
+static void edk2_libc_call_destructors(void) {
+    run_fini_array();
+}
+
+static void __c_uefi_init_libc(void) {
+    size_t size = __libc_init_array_end - __libc_init_array_start;
+    for (size_t i = 0; i < size; ++i) {
+        init_func_t func = __libc_init_array_start[i];
+        if (*func != NULL) {
+            (*func)();
+        }
+    }
+}
+
+
+init_func_t __libc_init_ref_edk2_libc_call_constructors __attribute__((retain, used, section(".__libc_init.prio_99.libc_constructors"), aligned(sizeof(init_func_t)))) = 
+edk2_libc_call_constructors;
+
+
+static void __c_uefi_deinit_libc(void) {
+    // iterate reversed
+    size_t size = __libc_fini_array_end - __libc_fini_array_start;
+    for (size_t i = size; i != 0; --i) {
+        init_func_t func = __libc_fini_array_start[i - 1];
+        if (*func != NULL) {
+            (*func)();
+        }
+    }
+}
+
+
+init_func_t __libc_init_ref_edk2_libc_call_destructors __attribute__((retain, used, section(".__libc_fini.prio_99.libc_destructors"), aligned(sizeof(init_func_t)))) = 
+edk2_libc_call_destructors;
+
 
 /** Clean up data as required by the exit() function.
 
@@ -67,6 +145,9 @@ exitCleanup(INTN ExitVal)
       CleanUp();
     }
   }
+
+  // this is needed, if we use a c++ standard library, we need to clean up that before we clean up the libc and after custom cleanup and atexit calls
+  __c_uefi_deinit_libc();
 }
 
 /* Create mbcs versions of the Argv strings. */
@@ -179,7 +260,8 @@ ShellAppMain (
     else {
       if( setjmp(gMD->MainExit) == 0) {
         errno   = 0;    // Clean up any "scratch" values from startup.
-        ExitVal = (INTN)main( (int)Argc, gMD->NArgV);
+        __c_uefi_init_libc();
+        ExitVal = (INTN)EDK2_LIBC_ENTRY_NAME( (int)Argc, gMD->NArgV);
         exitCleanup(ExitVal);
       }
       /* You reach here if:
