@@ -29,7 +29,7 @@
 #include  <Library/BaseLib.h>
 #include  <Library/BaseMemoryLib.h>
 #include  <Library/DebugLib.h>
-
+#include  <Library/SynchronizationLib.h>
 #include  <LibConfig.h>
 
 #include  <assert.h>
@@ -61,6 +61,37 @@ typedef struct {
 
 // List of memory allocated by malloc/calloc/etc.
 static  LIST_ENTRY      MemPoolHead = INITIALIZE_LIST_HEAD_VARIABLE(MemPoolHead);
+
+static SPIN_LOCK MemorySpinLock = {};
+
+EFI_STATUS
+EFIAPI
+LibStdLibConstructor (
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
+  )
+{
+  SPIN_LOCK * spin_lock = InitializeSpinLock(&MemorySpinLock);
+
+  if(spin_lock == NULL){
+    return EFI_LOAD_ERROR;
+  }
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS
+EFIAPI
+LibStdLibDestructor (
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
+  )
+{
+  return EFI_SUCCESS;
+}
+
+#define SPIN_LOCK_ACQUIRE(lock) ASSERT(AcquireSpinLock(lock) != NULL)
+#define SPIN_LOCK_RELEASE(lock) ASSERT(ReleaseSpinLock(lock) != NULL)
+
 
 /****************************/
 
@@ -103,6 +134,9 @@ malloc(size_t Size)
   NodeSize = (UINTN)(Size + sizeof(CPOOL_HEAD));
 
   DEBUG((DEBUG_POOL, "malloc(%d): NodeSz: %d", Size, NodeSize));
+  
+  SPIN_LOCK_ACQUIRE(&MemorySpinLock);
+  {
 
   Status = gBS->AllocatePool( EfiLoaderData, NodeSize, (void**)&Head);
   if( Status != EFI_SUCCESS) {
@@ -123,6 +157,9 @@ malloc(size_t Size)
     RetVal          = (void*)Head->Data;
     DEBUG((DEBUG_POOL, " Head: %p, Returns %p\n", Head, RetVal));
   }
+
+  }
+  SPIN_LOCK_RELEASE(&MemorySpinLock);
 
   return RetVal;
 }
@@ -176,6 +213,9 @@ free(void *Ptr)
 {
   CPOOL_HEAD   *Head;
 
+    SPIN_LOCK_ACQUIRE(&MemorySpinLock);
+  {
+
   Head = BASE_CR(Ptr, CPOOL_HEAD, Data);
   assert(Head != NULL);
   DEBUG((DEBUG_POOL, "free(%p): Head: %p\n", Ptr, Head));
@@ -191,6 +231,10 @@ free(void *Ptr)
              Ptr, Head->Signature, CPOOL_HEAD_SIGNATURE));
     }
   }
+
+  }
+  SPIN_LOCK_RELEASE(&MemorySpinLock);
+
   DEBUG((DEBUG_POOL, "free Done\n"));
 }
 
@@ -245,6 +289,9 @@ realloc(void *Ptr, size_t ReqSize)
   size_t      NewSize;
   size_t      NumCpy;
 
+  SPIN_LOCK_ACQUIRE(&MemorySpinLock);
+  {
+
   // Find out the size of the OLD memory region
   if( Ptr != NULL) {
     Head = BASE_CR (Ptr, CPOOL_HEAD, Data);
@@ -253,10 +300,15 @@ realloc(void *Ptr, size_t ReqSize)
       errno = EFAULT;
       DEBUG((DEBUG_ERROR, "ERROR realloc(0x%p): Signature is 0x%8X, expected 0x%8X\n",
              Ptr, Head->Signature, CPOOL_HEAD_SIGNATURE));
+
+      SPIN_LOCK_RELEASE(&MemorySpinLock);
       return NULL;
     }
     OldSize = (size_t)Head->Size;
   }
+
+  }
+  SPIN_LOCK_RELEASE(&MemorySpinLock);
 
   // At this point, Ptr is either NULL or a valid pointer to an allocated space
   NewSize = (size_t)(ReqSize + (sizeof(CPOOL_HEAD)));

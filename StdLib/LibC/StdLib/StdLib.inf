@@ -20,6 +20,8 @@
   MODULE_TYPE                    = UEFI_APPLICATION
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = LibStdLib
+  CONSTRUCTOR                    = LibStdLibConstructor
+  DESTRUCTOR                     = LibStdLibDestructor
 
 #
 #  VALID_ARCHITECTURES           = IA32 X64
