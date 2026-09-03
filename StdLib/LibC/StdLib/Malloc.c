@@ -142,6 +142,7 @@ malloc(size_t Size)
   if( Status != EFI_SUCCESS) {
     RetVal  = NULL;
     errno   = ENOMEM;
+    DEBUG((DEBUG_ERROR, "malloc(%d): NodeSz: %d", Size, NodeSize));
     DEBUG((DEBUG_ERROR, "\nERROR malloc: AllocatePool returned %r\n", Status));
   }
   else {

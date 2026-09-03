@@ -588,6 +588,8 @@ mkdir (const char *path, __mode_t perms)
   return retval;
 }
 
+#include <Library/DebugLib.h>
+
 /** Open a file.
     The open() function establishes the connection between a file and a file
     descriptor.  It creates an open file description that refers to a file
@@ -670,6 +672,8 @@ open(
   int                   fd = -1;
   int                   doresult;
 
+  DEBUG((DEBUG_ERROR, "%a %a:%d: IN OPEN %a\n", __func__, __FILE__, __LINE__, path));
+
   Status = ParsePath(path, &NewPath, &Node, &Instance, &MPath);
   if(Status == RETURN_SUCCESS) {
     if ((Node == NULL)               ||
@@ -695,6 +699,7 @@ open(
         filp->Omode = mode;
 
         doresult = Node->OpenFunc(Node, filp, Instance, NewPath, MPath);
+        DEBUG((DEBUG_ERROR, "%a %a:%d: IN OPEN %s %d\n", __func__, __FILE__, __LINE__, NewPath, doresult));
         if(doresult < 0) {
           filp->f_iflags = 0;   // Release this FD
           fd = -1;              // Indicate an error
