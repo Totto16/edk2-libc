@@ -106,6 +106,7 @@
   StdLib/LibC/Wchar/Wchar.inf
   StdLib/LibC/Ctype/Ctype.inf
   StdLib/LibC/Time/Time.inf
+  StdLib/LibC/Thread/Thread.inf
   StdLib/LibC/Stdio/Stdio.inf
   StdLib/LibC/Locale/Locale.inf
   StdLib/LibC/Uefi/Uefi.inf
