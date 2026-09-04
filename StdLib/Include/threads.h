@@ -1,6 +1,6 @@
-// partial C11 Threads. support
-
 #pragma once
+
+// partial C11 Threads support
 
 #include <sys/EfiCdefs.h>
 
@@ -48,6 +48,7 @@ int mtx_unlock(mtx_t* mtx);
 #elif LIBC_USE_MUTEX_TYPE == 1
 #define __LIBC_IMPL_MUTEX_TYPE __Libc_Impl_Mutex_atomic
 #define __LIBC_IMPL_MUTEX_PREFIX __Libc_Impl_Mutex_atomic_fn_
+#define __LIBC_IMPL_MUTEX_CONST_INIT ((__LIBC_IMPL_MUTEX_TYPE) { .locked = 0 })
 #else
 #error "Invalid LIBC_USE_MUTEX_TYPE value"
 #endif
@@ -56,13 +57,37 @@ typedef struct {
     volatile UINT32 locked;
 } __Libc_Impl_Mutex_atomic;
 
+typedef struct {
+    bool locked;
+    UINTN amount;
+    UINTN thread_id;
+} __Libc_Impl_Mutex_recursive_state;
+
+typedef struct {
+    __LIBC_IMPL_MUTEX_TYPE mutex;
+    __Libc_Impl_Mutex_recursive_state state;
+} __Libc_Impl_Mutex_recursive;
+
+typedef enum {
+    __Libc_Impl_Mutex_type_plain = 0,
+    __Libc_Impl_Mutex_type_recursive = 1,
+} __Libc_Impl_Mutex_type;
+
 
 struct mtx_t_impl {
-    __LIBC_IMPL_MUTEX_TYPE value;
+    __Libc_Impl_Mutex_type type;
+    union {
+        __LIBC_IMPL_MUTEX_TYPE plain;
+        __Libc_Impl_Mutex_recursive recursive;
+    } data;
 };
 
 #define MTX_T_MEMBER_TYPE __LIBC_IMPL_MUTEX_TYPE
 
-#define MTX_T_STATIC_INITIALIZER ((mtx_t) { .value = ((__LIBC_IMPL_MUTEX_TYPE) { 0 }) })
+
+extern UINT32 g_id;
+#define MTX_T_STATIC_INITIALIZER \
+    ((mtx_t) { .type = __Libc_Impl_Mutex_type_plain, .data = { .plain = __LIBC_IMPL_MUTEX_CONST_INIT } })
+
 
 __END_DECLS
