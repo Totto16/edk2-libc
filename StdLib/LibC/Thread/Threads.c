@@ -61,6 +61,19 @@ static void __Libc_Impl_Mutex_atomic_fn_unlock(__Libc_Impl_Mutex_atomic* value) 
     ASSERT(result == 1);
 }
 
+#if LIBC_USE_MUTEX_TYPE == 0
+#error "TODO"
+
+//TODO use the spinlock
+
+// #define SPIN_LOCK_ACQUIRE(lock) ASSERT(AcquireSpinLock(lock) != NULL)
+// #define SPIN_LOCK_RELEASE(lock) ASSERT(ReleaseSpinLock(lock) != NULL)
+
+//   SPIN_LOCK * spin_lock = InitializeSpinLock(&MemorySpinLock);
+
+#endif
+
+
 static void __Libc_Impl_Mutex_recursive_fn_init(__Libc_Impl_Mutex_recursive* value) {
     *value = (__Libc_Impl_Mutex_recursive){
         .mutex = {},

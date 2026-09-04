@@ -30,11 +30,13 @@
 #include  <Library/BaseMemoryLib.h>
 #include  <Library/DebugLib.h>
 #include  <Library/SynchronizationLib.h>
+
 #include  <LibConfig.h>
 
 #include  <assert.h>
 #include  <stdlib.h>
 #include  <errno.h>
+#include  <threads.h>
 
 #define CPOOL_HEAD_SIGNATURE   SIGNATURE_32('C','p','h','d')
 
@@ -62,7 +64,11 @@ typedef struct {
 // List of memory allocated by malloc/calloc/etc.
 static  LIST_ENTRY      MemPoolHead = INITIALIZE_LIST_HEAD_VARIABLE(MemPoolHead);
 
-static SPIN_LOCK MemorySpinLock = {};
+static mtx_t g_MemoryMutex = {};
+
+#define MUTEX_ACQUIRE(lock) ASSERT(mtx_lock(lock) == thrd_success)
+#define MUTEX_RELEASE(lock) ASSERT(mtx_unlock(lock) == thrd_success)
+
 
 EFI_STATUS
 EFIAPI
@@ -71,9 +77,9 @@ LibStdLibConstructor (
   IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  SPIN_LOCK * spin_lock = InitializeSpinLock(&MemorySpinLock);
+  int result = mtx_init(&g_MemoryMutex, mtx_plain);
 
-  if(spin_lock == NULL){
+  if(result != thrd_success){
     return EFI_LOAD_ERROR;
   }
   return EFI_SUCCESS;
@@ -86,11 +92,9 @@ LibStdLibDestructor (
   IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
+  mtx_destroy(&g_MemoryMutex);
   return EFI_SUCCESS;
 }
-
-#define SPIN_LOCK_ACQUIRE(lock) ASSERT(AcquireSpinLock(lock) != NULL)
-#define SPIN_LOCK_RELEASE(lock) ASSERT(ReleaseSpinLock(lock) != NULL)
 
 
 /****************************/
@@ -135,7 +139,7 @@ malloc(size_t Size)
 
   DEBUG((DEBUG_POOL, "malloc(%d): NodeSz: %d", Size, NodeSize));
   
-  SPIN_LOCK_ACQUIRE(&MemorySpinLock);
+  MUTEX_ACQUIRE(&g_MemoryMutex);
   {
 
   Status = gBS->AllocatePool( EfiLoaderData, NodeSize, (void**)&Head);
@@ -160,7 +164,7 @@ malloc(size_t Size)
   }
 
   }
-  SPIN_LOCK_RELEASE(&MemorySpinLock);
+  MUTEX_RELEASE(&g_MemoryMutex);
 
   return RetVal;
 }
@@ -214,7 +218,7 @@ free(void *Ptr)
 {
   CPOOL_HEAD   *Head;
 
-    SPIN_LOCK_ACQUIRE(&MemorySpinLock);
+    MUTEX_ACQUIRE(&g_MemoryMutex);
   {
 
   Head = BASE_CR(Ptr, CPOOL_HEAD, Data);
@@ -234,7 +238,7 @@ free(void *Ptr)
   }
 
   }
-  SPIN_LOCK_RELEASE(&MemorySpinLock);
+  MUTEX_RELEASE(&g_MemoryMutex);
 
   DEBUG((DEBUG_POOL, "free Done\n"));
 }
@@ -290,7 +294,7 @@ realloc(void *Ptr, size_t ReqSize)
   size_t      NewSize;
   size_t      NumCpy;
 
-  SPIN_LOCK_ACQUIRE(&MemorySpinLock);
+  MUTEX_ACQUIRE(&g_MemoryMutex);
   {
 
   // Find out the size of the OLD memory region
@@ -302,14 +306,14 @@ realloc(void *Ptr, size_t ReqSize)
       DEBUG((DEBUG_ERROR, "ERROR realloc(0x%p): Signature is 0x%8X, expected 0x%8X\n",
              Ptr, Head->Signature, CPOOL_HEAD_SIGNATURE));
 
-      SPIN_LOCK_RELEASE(&MemorySpinLock);
+      MUTEX_RELEASE(&g_MemoryMutex);
       return NULL;
     }
     OldSize = (size_t)Head->Size;
   }
 
   }
-  SPIN_LOCK_RELEASE(&MemorySpinLock);
+  MUTEX_RELEASE(&g_MemoryMutex);
 
   // At this point, Ptr is either NULL or a valid pointer to an allocated space
   NewSize = (size_t)(ReqSize + (sizeof(CPOOL_HEAD)));
