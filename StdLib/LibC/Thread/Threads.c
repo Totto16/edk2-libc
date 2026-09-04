@@ -281,9 +281,13 @@ typedef struct {
     EFI_MP_SERVICES_PROTOCOL* Mp;
 } EfiThreadState;
 
-static EfiThreadState __efi_thread_state = {};
+static EfiThreadState __efi_thread_state = { .Mp = NULL };
 
 void efi_threads_init(void) {
+
+    if (__efi_thread_state.Mp != NULL) {
+        return;
+    }
 
     if (!gBS) {
         DEBUG((DEBUG_ERROR, "ERROR: gBS is NULL\n"));

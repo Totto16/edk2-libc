@@ -672,7 +672,6 @@ open(
   int                   fd = -1;
   int                   doresult;
 
-  DEBUG((DEBUG_ERROR, "%a %a:%d: IN OPEN %a\n", __func__, __FILE__, __LINE__, path));
 
   Status = ParsePath(path, &NewPath, &Node, &Instance, &MPath);
   if(Status == RETURN_SUCCESS) {
@@ -699,7 +698,6 @@ open(
         filp->Omode = mode;
 
         doresult = Node->OpenFunc(Node, filp, Instance, NewPath, MPath);
-        DEBUG((DEBUG_ERROR, "%a %a:%d: IN OPEN %s %d\n", __func__, __FILE__, __LINE__, NewPath, doresult));
         if(doresult < 0) {
           filp->f_iflags = 0;   // Release this FD
           fd = -1;              // Indicate an error
@@ -727,6 +725,9 @@ open(
       }
     }
     free(NewPath);
+  }else{
+      errno   = EFI2errno(Status);
+      fd = -1;
   }
   free(MPath);    // We don't need this any more.
 
