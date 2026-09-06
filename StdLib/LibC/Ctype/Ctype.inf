@@ -48,3 +48,4 @@
 #
 [BuildOptions]
   MSFT:*_*_*_CC_FLAGS    = /GL-
+  GCC:*_*_*_CC_FLAGS = -D_REENTRANT

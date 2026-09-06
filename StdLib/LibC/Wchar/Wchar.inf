@@ -54,3 +54,4 @@
 #
 [BuildOptions]
   MSFT:*_*_*_CC_FLAGS     = /Oi-
+  GCC:*_*_*_CC_FLAGS = -D_REENTRANT

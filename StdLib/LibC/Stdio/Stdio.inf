@@ -146,3 +146,4 @@
 #
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS    = -fno-builtin -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast -Wno-format
+  GCC:*_*_*_CC_FLAGS = -D_REENTRANT

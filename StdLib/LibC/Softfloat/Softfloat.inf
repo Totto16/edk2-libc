@@ -73,3 +73,4 @@
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS  = -DSOFTFLOAT_FOR_GCC -Wno-enum-compare -fno-tree-vrp -fno-lto
   MSFT:*_*_*_CC_FLAGS  = -DSOFTFLOAT_FOR_GCC
+  GCC:*_*_*_CC_FLAGS = -D_REENTRANT

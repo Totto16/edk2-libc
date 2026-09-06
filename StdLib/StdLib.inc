@@ -141,3 +141,4 @@
     MSFT:*_VS2019_*_CC_FLAGS          = /Wv:11
 
     GCC:*_*_*_CC_FLAGS = -Wprio-ctor-dtor
+    GCC:*_*_*_CC_FLAGS = -D_REENTRANT

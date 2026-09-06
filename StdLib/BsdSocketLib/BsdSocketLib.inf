@@ -115,4 +115,5 @@
   gEfiSocketProtocolGuid
 
 [BuildOptions]
-   MSFT:*_*_*_CC_FLAGS = /wd4706
+  MSFT:*_*_*_CC_FLAGS = /wd4706
+  GCC:*_*_*_CC_FLAGS = -D_REENTRANT
