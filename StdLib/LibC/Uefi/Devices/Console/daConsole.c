@@ -35,6 +35,7 @@
 #include  <wctype.h>
 #include  <wchar.h>
 #include  <stdarg.h>
+#include <threads.h>
 #include  <sys/fcntl.h>
 #include  <unistd.h>
 #include  <sys/termios.h>
@@ -63,6 +64,13 @@ static cIIO          *IIO;
 /* Flags settable by Ioctl */
 static BOOLEAN        TtyCooked;
 static BOOLEAN        TtyEcho;
+
+static mtx_t g_ConIOMutex = {};
+
+
+#define MUTEX_ACQUIRE(lock) ASSERT(mtx_lock(lock) == thrd_success)
+#define MUTEX_RELEASE(lock) ASSERT(mtx_unlock(lock) == thrd_success)
+
 
 /** Convert string from MBCS to WCS and translate \n to \r\n.
 
@@ -204,6 +212,9 @@ da_ConWrite(
     EFIerrno = RETURN_UNSUPPORTED;
     return -1;
   }
+
+  MUTEX_ACQUIRE(&g_ConIOMutex);
+
   // Everything is OK to do the write.
   Proto = (EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *)Stream->Dev;
 
@@ -227,6 +238,9 @@ da_ConWrite(
     Stream->NumWritten += NumChar;
   }
   EFIerrno = Status;      // Make error reason available to caller
+
+  MUTEX_RELEASE(&g_ConIOMutex);
+
   return NumChar;
 }
 
@@ -718,6 +732,12 @@ __Cons_construct(
   RETURN_STATUS   Status;
   int             i;
 
+  int result = mtx_init(&g_ConIOMutex, mtx_plain);
+
+  if(result != thrd_success){
+    return EFI_LOAD_ERROR;
+  }
+
   Status = RETURN_OUT_OF_RESOURCES;
   ConInstanceList = (ConInstance *)AllocateZeroPool(NUM_SPECIAL * sizeof(ConInstance));
   if(ConInstanceList != NULL) {
@@ -812,6 +832,8 @@ __Cons_deconstruct(
     IIO->Delete(IIO);
     IIO = NULL;
   }
+
+  mtx_destroy(&g_ConIOMutex);
 
   return RETURN_SUCCESS;
 }

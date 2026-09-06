@@ -37,6 +37,7 @@
 #include  <stdlib.h>
 #include  <errno.h>
 #include  <threads.h>
+#include  <sys/threads.h>
 
 #define CPOOL_HEAD_SIGNATURE   SIGNATURE_32('C','p','h','d')
 
@@ -232,8 +233,8 @@ free(void *Ptr)
     }
     else {
       errno = EFAULT;
-      DEBUG((DEBUG_ERROR, "ERROR free(0x%p): Signature is 0x%8X, expected 0x%8X\n",
-             Ptr, Head->Signature, CPOOL_HEAD_SIGNATURE));
+      DEBUG((DEBUG_ERROR, "ERROR free(0x%p): [%lu] Signature is 0x%8X, expected 0x%8X\n",
+             Ptr, efi_thread_id(), Head->Signature, CPOOL_HEAD_SIGNATURE));
     }
   }
 
@@ -303,8 +304,8 @@ realloc(void *Ptr, size_t ReqSize)
     assert(Head != NULL);
     if (Head->Signature != CPOOL_HEAD_SIGNATURE) {
       errno = EFAULT;
-      DEBUG((DEBUG_ERROR, "ERROR realloc(0x%p): Signature is 0x%8X, expected 0x%8X\n",
-             Ptr, Head->Signature, CPOOL_HEAD_SIGNATURE));
+      DEBUG((DEBUG_ERROR, "ERROR realloc(0x%p): [%lu] Signature is 0x%8X, expected 0x%8X\n",
+             Ptr, efi_thread_id(), Head->Signature, CPOOL_HEAD_SIGNATURE));
 
       MUTEX_RELEASE(&g_MemoryMutex);
       return NULL;
