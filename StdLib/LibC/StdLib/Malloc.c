@@ -29,12 +29,15 @@
 #include  <Library/BaseLib.h>
 #include  <Library/BaseMemoryLib.h>
 #include  <Library/DebugLib.h>
+#include  <Library/SynchronizationLib.h>
 
 #include  <LibConfig.h>
 
 #include  <assert.h>
 #include  <stdlib.h>
 #include  <errno.h>
+#include  <threads.h>
+#include  <sys/threads.h>
 
 #define CPOOL_HEAD_SIGNATURE   SIGNATURE_32('C','p','h','d')
 
@@ -61,6 +64,39 @@ typedef struct {
 
 // List of memory allocated by malloc/calloc/etc.
 static  LIST_ENTRY      MemPoolHead = INITIALIZE_LIST_HEAD_VARIABLE(MemPoolHead);
+
+static mtx_t g_MemoryMutex = {};
+
+#define MUTEX_ACQUIRE(lock) ASSERT(mtx_lock(lock) == thrd_success)
+#define MUTEX_RELEASE(lock) ASSERT(mtx_unlock(lock) == thrd_success)
+
+
+EFI_STATUS
+EFIAPI
+LibStdLibConstructor (
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
+  )
+{
+  int result = mtx_init(&g_MemoryMutex, mtx_plain);
+
+  if(result != thrd_success){
+    return EFI_LOAD_ERROR;
+  }
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS
+EFIAPI
+LibStdLibDestructor (
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
+  )
+{
+  mtx_destroy(&g_MemoryMutex);
+  return EFI_SUCCESS;
+}
+
 
 /****************************/
 
@@ -103,11 +139,15 @@ malloc(size_t Size)
   NodeSize = (UINTN)(Size + sizeof(CPOOL_HEAD));
 
   DEBUG((DEBUG_POOL, "malloc(%d): NodeSz: %d", Size, NodeSize));
+  
+  MUTEX_ACQUIRE(&g_MemoryMutex);
+  {
 
   Status = gBS->AllocatePool( EfiLoaderData, NodeSize, (void**)&Head);
   if( Status != EFI_SUCCESS) {
     RetVal  = NULL;
     errno   = ENOMEM;
+    DEBUG((DEBUG_ERROR, "malloc(%d): NodeSz: %d", Size, NodeSize));
     DEBUG((DEBUG_ERROR, "\nERROR malloc: AllocatePool returned %r\n", Status));
   }
   else {
@@ -123,6 +163,9 @@ malloc(size_t Size)
     RetVal          = (void*)Head->Data;
     DEBUG((DEBUG_POOL, " Head: %p, Returns %p\n", Head, RetVal));
   }
+
+  }
+  MUTEX_RELEASE(&g_MemoryMutex);
 
   return RetVal;
 }
@@ -176,6 +219,9 @@ free(void *Ptr)
 {
   CPOOL_HEAD   *Head;
 
+    MUTEX_ACQUIRE(&g_MemoryMutex);
+  {
+
   Head = BASE_CR(Ptr, CPOOL_HEAD, Data);
   assert(Head != NULL);
   DEBUG((DEBUG_POOL, "free(%p): Head: %p\n", Ptr, Head));
@@ -187,10 +233,14 @@ free(void *Ptr)
     }
     else {
       errno = EFAULT;
-      DEBUG((DEBUG_ERROR, "ERROR free(0x%p): Signature is 0x%8X, expected 0x%8X\n",
-             Ptr, Head->Signature, CPOOL_HEAD_SIGNATURE));
+      DEBUG((DEBUG_ERROR, "ERROR free(0x%p): [%lu] Signature is 0x%8X, expected 0x%8X\n",
+             Ptr, efi_thread_id(), Head->Signature, CPOOL_HEAD_SIGNATURE));
     }
   }
+
+  }
+  MUTEX_RELEASE(&g_MemoryMutex);
+
   DEBUG((DEBUG_POOL, "free Done\n"));
 }
 
@@ -245,18 +295,26 @@ realloc(void *Ptr, size_t ReqSize)
   size_t      NewSize;
   size_t      NumCpy;
 
+  MUTEX_ACQUIRE(&g_MemoryMutex);
+  {
+
   // Find out the size of the OLD memory region
   if( Ptr != NULL) {
     Head = BASE_CR (Ptr, CPOOL_HEAD, Data);
     assert(Head != NULL);
     if (Head->Signature != CPOOL_HEAD_SIGNATURE) {
       errno = EFAULT;
-      DEBUG((DEBUG_ERROR, "ERROR realloc(0x%p): Signature is 0x%8X, expected 0x%8X\n",
-             Ptr, Head->Signature, CPOOL_HEAD_SIGNATURE));
+      DEBUG((DEBUG_ERROR, "ERROR realloc(0x%p): [%lu] Signature is 0x%8X, expected 0x%8X\n",
+             Ptr, efi_thread_id(), Head->Signature, CPOOL_HEAD_SIGNATURE));
+
+      MUTEX_RELEASE(&g_MemoryMutex);
       return NULL;
     }
     OldSize = (size_t)Head->Size;
   }
+
+  }
+  MUTEX_RELEASE(&g_MemoryMutex);
 
   // At this point, Ptr is either NULL or a valid pointer to an allocated space
   NewSize = (size_t)(ReqSize + (sizeof(CPOOL_HEAD)));

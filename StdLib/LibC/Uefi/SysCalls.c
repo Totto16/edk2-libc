@@ -722,6 +722,9 @@ open(
       }
     }
     free(NewPath);
+  }else{
+      errno   = EFI2errno(Status);
+      fd = -1;
   }
   free(MPath);    // We don't need this any more.
 

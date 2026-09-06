@@ -37,6 +37,7 @@
   LibStdLib|StdLib/LibC/StdLib/StdLib.inf
   LibString|StdLib/LibC/String/String.inf
   LibTime|StdLib/LibC/Time/Time.inf
+  LibThread|StdLib/LibC/Thread/Thread.inf
   LibUefi|StdLib/LibC/Uefi/Uefi.inf
   LibWchar|StdLib/LibC/Wchar/Wchar.inf
 
